@@ -6,9 +6,9 @@ export default function ApiKeyModal({ currentKey, onSave, onClose, canClose }) {
   return (
     <div className="modal-overlay">
       <div className="modal">
-        <h2>Gemini API キーの設定</h2>
+        <h2>Groq API キーの設定</h2>
         <p className="modal-desc">
-          Google AI Studio の APIキーを入力してください。<br />
+          Groq Console の APIキーを入力してください。<br />
           キーはこのブラウザにのみ保存され、外部には送信されません。
         </p>
         <input
@@ -16,7 +16,7 @@ export default function ApiKeyModal({ currentKey, onSave, onClose, canClose }) {
           value={key}
           onChange={e => setKey(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && key.trim() && onSave(key.trim())}
-          placeholder="AIzaSy..."
+          placeholder="gsk_..."
           className="key-input"
           autoFocus
         />
@@ -35,7 +35,7 @@ export default function ApiKeyModal({ currentKey, onSave, onClose, canClose }) {
           )}
         </div>
         <a
-          href="https://aistudio.google.com/apikey"
+          href="https://console.groq.com/keys"
           target="_blank"
           rel="noopener noreferrer"
           className="api-key-link"

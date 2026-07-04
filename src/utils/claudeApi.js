@@ -1,4 +1,6 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import Groq from 'groq-sdk'
+
+const MODEL = 'llama-3.3-70b-versatile'
 
 const NVC_SYSTEM_PROMPT = `あなたは温かく共感的なNVC（非暴力コミュニケーション）の実践者です。
 新しい事業を立ち上げようとしている人が、複雑な感情を整理できるよう寄り添います。
@@ -29,47 +31,46 @@ const EXTRACT_SYSTEM_PROMPT = `あなたはNVCの専門家です。
 感情語は純粋な感情（例：不安、悲しい、怖い、嬉しい、高揚、焦り）を使用。
 ニーズは普遍的人間ニーズ（例：安心、つながり、自律性、承認、意味、貢献、成長、明確さ）を使用。`
 
-function toGeminiHistory(messages) {
-  return messages.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }))
-}
-
 export async function sendMessageStream(messages, apiKey, onToken) {
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction: NVC_SYSTEM_PROMPT,
+  const client = new Groq({ apiKey, dangerouslyAllowBrowser: true })
+
+  const stream = await client.chat.completions.create({
+    model: MODEL,
+    max_tokens: 1024,
+    stream: true,
+    messages: [
+      { role: 'system', content: NVC_SYSTEM_PROMPT },
+      ...messages,
+    ],
   })
 
-  const history = toGeminiHistory(messages.slice(0, -1))
-  const lastMessage = messages[messages.length - 1].content
-
-  const chat = model.startChat({ history })
-  const result = await chat.sendMessageStream(lastMessage)
-
-  for await (const chunk of result.stream) {
-    onToken(chunk.text())
+  for await (const chunk of stream) {
+    const text = chunk.choices[0]?.delta?.content || ''
+    if (text) onToken(text)
   }
 }
 
 export async function extractNVC(messages, apiKey) {
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction: EXTRACT_SYSTEM_PROMPT,
-  })
+  const client = new Groq({ apiKey, dangerouslyAllowBrowser: true })
 
   const conversationText = messages
     .map(m => `${m.role === 'user' ? 'あなた' : 'NVCガイド'}: ${m.content}`)
     .join('\n')
 
-  const result = await model.generateContent(
-    `以下の会話からNVC要素を抽出してください：\n\n${conversationText}`
-  )
+  const response = await client.chat.completions.create({
+    model: MODEL,
+    max_tokens: 512,
+    stream: false,
+    messages: [
+      { role: 'system', content: EXTRACT_SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: `以下の会話からNVC要素を抽出してください：\n\n${conversationText}`,
+      },
+    ],
+  })
 
-  const text = result.response.text()
+  const text = response.choices[0].message.content
   const jsonMatch = text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('JSON抽出に失敗しました')
   return JSON.parse(jsonMatch[0])
