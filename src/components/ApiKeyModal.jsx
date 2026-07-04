@@ -6,9 +6,9 @@ export default function ApiKeyModal({ currentKey, onSave, onClose, canClose }) {
   return (
     <div className="modal-overlay">
       <div className="modal">
-        <h2>Claude API キーの設定</h2>
+        <h2>Gemini API キーの設定</h2>
         <p className="modal-desc">
-          Anthropic のAPIキーを入力してください。<br />
+          Google AI Studio の APIキーを入力してください。<br />
           キーはこのブラウザにのみ保存され、外部には送信されません。
         </p>
         <input
@@ -16,7 +16,7 @@ export default function ApiKeyModal({ currentKey, onSave, onClose, canClose }) {
           value={key}
           onChange={e => setKey(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && key.trim() && onSave(key.trim())}
-          placeholder="sk-ant-..."
+          placeholder="AIzaSy..."
           className="key-input"
           autoFocus
         />
@@ -35,7 +35,7 @@ export default function ApiKeyModal({ currentKey, onSave, onClose, canClose }) {
           )}
         </div>
         <a
-          href="https://console.anthropic.com/settings/keys"
+          href="https://aistudio.google.com/apikey"
           target="_blank"
           rel="noopener noreferrer"
           className="api-key-link"

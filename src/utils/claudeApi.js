@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const NVC_SYSTEM_PROMPT = `あなたは温かく共感的なNVC（非暴力コミュニケーション）の実践者です。
 新しい事業を立ち上げようとしている人が、複雑な感情を整理できるよう寄り添います。
@@ -29,55 +29,47 @@ const EXTRACT_SYSTEM_PROMPT = `あなたはNVCの専門家です。
 感情語は純粋な感情（例：不安、悲しい、怖い、嬉しい、高揚、焦り）を使用。
 ニーズは普遍的人間ニーズ（例：安心、つながり、自律性、承認、意味、貢献、成長、明確さ）を使用。`
 
-function createClient(apiKey) {
-  return new Anthropic({
-    apiKey,
-    dangerouslyAllowBrowser: true,
-  })
+function toGeminiHistory(messages) {
+  return messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }))
 }
 
 export async function sendMessageStream(messages, apiKey, onToken) {
-  const client = createClient(apiKey)
-
-  const stream = client.messages.stream({
-    model: 'claude-haiku-4-5',
-    max_tokens: 1024,
-    system: NVC_SYSTEM_PROMPT,
-    messages,
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    systemInstruction: NVC_SYSTEM_PROMPT,
   })
 
-  for await (const event of stream) {
-    if (
-      event.type === 'content_block_delta' &&
-      event.delta.type === 'text_delta'
-    ) {
-      onToken(event.delta.text)
-    }
-  }
+  const history = toGeminiHistory(messages.slice(0, -1))
+  const lastMessage = messages[messages.length - 1].content
 
-  return await stream.finalMessage()
+  const chat = model.startChat({ history })
+  const result = await chat.sendMessageStream(lastMessage)
+
+  for await (const chunk of result.stream) {
+    onToken(chunk.text())
+  }
 }
 
 export async function extractNVC(messages, apiKey) {
-  const client = createClient(apiKey)
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    systemInstruction: EXTRACT_SYSTEM_PROMPT,
+  })
 
   const conversationText = messages
     .map(m => `${m.role === 'user' ? 'あなた' : 'NVCガイド'}: ${m.content}`)
     .join('\n')
 
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 512,
-    system: EXTRACT_SYSTEM_PROMPT,
-    messages: [
-      {
-        role: 'user',
-        content: `以下の会話からNVC要素を抽出してください：\n\n${conversationText}`,
-      },
-    ],
-  })
+  const result = await model.generateContent(
+    `以下の会話からNVC要素を抽出してください：\n\n${conversationText}`
+  )
 
-  const text = response.content[0].text
+  const text = result.response.text()
   const jsonMatch = text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('JSON抽出に失敗しました')
   return JSON.parse(jsonMatch[0])
