@@ -88,7 +88,7 @@ export default function Chat({ apiKey, onSessionAdded }) {
   }
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && e.ctrlKey) {
       e.preventDefault()
       handleSend()
     }
@@ -163,7 +163,7 @@ export default function Chat({ apiKey, onSessionAdded }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="自由に話してください… (Enter で送信、Shift+Enter で改行)"
+            placeholder="自由に話してください… (Ctrl+Enter で送信)"
             disabled={isLoading}
             rows={2}
           />
